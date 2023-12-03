@@ -1,0 +1,21 @@
+name: 'Create posts from issues'
+description: 'Create posts from the issue tracker'
+author: 'Rob Mensching'
+
+branding:
+  icon: 'heart'
+  color: 'red'
+
+inputs:
+  contentFolder:
+    description: 'Content folder'
+    required: true
+    default: 'src/content/blog'
+
+outputs:
+  path:
+    description: 'The output path to the created post'
+
+runs:
+  using: node20
+  main: dist/index.js
