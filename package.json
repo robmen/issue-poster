@@ -1,17 +1,8 @@
 {
   "name": "issue-poster",
-  "description": "GitHub Action that publishes closed GitHub issues as Markdown posts",
   "version": "0.1.0",
-  "author": "Rob Mensching",
   "private": true,
-  "homepage": "https://github.com/robmen/issue-poster#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/robmen/issue-poster.git"
-  },
-  "bugs": {
-    "url": "https://github.com/robmen/issue-poster/issues"
-  },
+  "description": "GitHub Action that publishes closed GitHub issues as Markdown posts",
   "keywords": [
     "astro",
     "blog",
@@ -19,53 +10,30 @@
     "issues",
     "markdown"
   ],
+  "homepage": "https://github.com/robmen/issue-poster#readme",
+  "bugs": {
+    "url": "https://github.com/robmen/issue-poster/issues"
+  },
+  "license": "MIT",
+  "author": "Rob Mensching",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/robmen/issue-poster.git"
+  },
   "exports": {
     ".": "./dist/index.js"
   },
-  "engines": {
-    "node": ">=20.19.0"
-  },
   "scripts": {
-    "bundle": "npm run format:write && npm run package",
-    "ci-test": "jest",
-    "coverage": "make-coverage-badge --output-path ./badges/coverage.svg",
-    "format:write": "prettier --write **/*.ts",
-    "format:check": "prettier --check **/*.ts",
-    "lint": "npx eslint . -c ./.github/linters/.eslintrc.yml",
+    "bundle": "npm run format:write && vp build",
+    "check": "vp check src __tests__ .github action.yml package.json tsconfig.json vite.config.js README.md",
+    "ci-test": "vp test run",
+    "format:write": "vp fmt src __tests__ .github action.yml package.json tsconfig.json vite.config.js README.md --write",
+    "format:check": "vp fmt src __tests__ .github action.yml package.json tsconfig.json vite.config.js README.md --check",
+    "lint": "npm run check",
     "package": "vp build",
-    "package:watch": "npm run package -- --watch",
-    "test": "jest",
-    "all": "npm run format:write && npm run lint && npm run test && npm run coverage && npm run package"
-  },
-  "license": "MIT",
-  "jest": {
-    "preset": "ts-jest",
-    "verbose": true,
-    "clearMocks": true,
-    "testEnvironment": "node",
-    "moduleFileExtensions": [
-      "js",
-      "ts"
-    ],
-    "testMatch": [
-      "**/*.test.ts"
-    ],
-    "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/dist/"
-    ],
-    "transform": {
-      "^.+\\.ts$": "ts-jest"
-    },
-    "coverageReporters": [
-      "json-summary",
-      "text",
-      "lcov"
-    ],
-    "collectCoverage": true,
-    "collectCoverageFrom": [
-      "./src/**"
-    ]
+    "package:watch": "vp build --watch",
+    "test": "vp test run",
+    "all": "npm run format:write && npm run check && vp test run && vp build"
   },
   "dependencies": {
     "@actions/core": "^1.10.1",
@@ -73,20 +41,10 @@
     "@actions/io": "^1.1.3"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.10",
     "@types/node": "^20.10.1",
-    "@typescript-eslint/eslint-plugin": "^6.13.1",
-    "@typescript-eslint/parser": "^6.13.1",
-    "eslint": "^8.54.0",
-    "eslint-plugin-github": "^4.10.1",
-    "eslint-plugin-jest": "^27.6.0",
-    "eslint-plugin-jsonc": "^2.10.0",
-    "eslint-plugin-prettier": "^5.0.1",
-    "jest": "^29.7.0",
-    "make-coverage-badge": "^1.2.0",
-    "prettier": "^3.1.0",
-    "prettier-eslint": "^16.1.2",
-    "ts-jest": "^29.1.1",
     "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }

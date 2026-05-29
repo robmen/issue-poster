@@ -35,7 +35,7 @@ lead: "Issue body"
 image: "https://example.com/image.png"
 imageAlt: "Image alt text"
 date: 2023-12-02 01:20:26Z
-tags: ["label-one","label-two"]
+tags: ["label-one", "label-two"]
 youtube: I1XJYdg3kWQ
 ---
 ```
@@ -139,31 +139,32 @@ For local testing from this repository, use the local action reference:
 
 ## Inputs
 
-| Name | Required | Default | Description |
-| --- | --- | --- | --- |
-| `contentFolder` | Yes | `src/content/blog` | Root folder where generated posts are written. |
-| `defaultTags` | No | `personal` | Comma-separated tags to use when the issue has no labels. |
+| Name            | Required | Default            | Description                                               |
+| --------------- | -------- | ------------------ | --------------------------------------------------------- |
+| `contentFolder` | Yes      | `src/content/blog` | Root folder where generated posts are written.            |
+| `defaultTags`   | No       | `personal`         | Comma-separated tags to use when the issue has no labels. |
 
 ## Outputs
 
-| Name | Description |
-| --- | --- |
+| Name   | Description                                                                           |
+| ------ | ------------------------------------------------------------------------------------- |
 | `path` | Path to the generated Markdown file. Empty when the event was not for a closed issue. |
 
 ## Development
 
-This action is written in TypeScript and runs on Node.js 20.
+This action is written in TypeScript and runs on Node.js 20.19 or later.
+Development commands use VITE+, so install `vp` before running the scripts.
 
 Install dependencies:
 
 ```bash
-npm install
+vp install
 ```
 
 Run tests:
 
 ```bash
-npm test
+npm run test
 ```
 
 Check formatting:

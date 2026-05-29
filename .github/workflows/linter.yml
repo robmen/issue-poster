@@ -1,4 +1,4 @@
-name: Lint Codebase
+name: Check Codebase
 
 on:
   pull_request:
@@ -8,12 +8,10 @@ on:
 
 permissions:
   contents: read
-  packages: read
-  statuses: write
 
 jobs:
-  lint:
-    name: Lint Codebase
+  check:
+    name: Check Codebase
     runs-on: ubuntu-latest
 
     steps:
@@ -28,18 +26,14 @@ jobs:
           node-version-file: .node-version
           cache: npm
 
+      - name: Install VITE+
+        id: install-vite-plus
+        run: npm install --global vite-plus@0.1.22
+
       - name: Install Dependencies
         id: install
         run: npm ci
 
-      - name: Lint Codebase
-        id: super-linter
-        uses: super-linter/super-linter/slim@v5
-        env:
-          DEFAULT_BRANCH: main
-          FILTER_REGEX_EXCLUDE: dist/**/*
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TYPESCRIPT_DEFAULT_STYLE: prettier
-          VALIDATE_ALL_CODEBASE: true
-          VALIDATE_JAVASCRIPT_STANDARD: false
-          VALIDATE_JSCPD: false
+      - name: Check Codebase
+        id: check
+        run: npm run check

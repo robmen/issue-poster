@@ -1,13 +1,13 @@
 /**
  * The entrypoint for the action.
  */
-import type { WebhookPayload } from '@actions/github/lib/interfaces';
-import * as core from '@actions/core';
-import * as github from '@actions/github';
-import * as io from '@actions/io';
-import { writeFile } from 'fs';
-import * as path from 'path';
-import { promisify } from 'util';
+import type { WebhookPayload } from "@actions/github/lib/interfaces";
+import * as core from "@actions/core";
+import * as github from "@actions/github";
+import * as io from "@actions/io";
+import { writeFile } from "fs";
+import * as path from "path";
+import { promisify } from "util";
 
 type Label = {
   name: string;
@@ -40,10 +40,10 @@ export async function run(): Promise<void> {
       return;
     }
 
-    const contentFolder = core.getInput('contentFolder');
+    const contentFolder = core.getInput("contentFolder");
     const { outputFolder, outputPath } = pathsForIssue(contentFolder, issue);
     const content = generateContent(issue, {
-      defaultTags: splitInput(core.getInput('defaultTags'))
+      defaultTags: splitInput(core.getInput("defaultTags")),
     });
 
     core.info(`outputPath: ${outputPath}`);
@@ -53,29 +53,23 @@ export async function run(): Promise<void> {
 
     await writeFileAsync(outputPath, content);
 
-    core.setOutput('path', outputPath);
+    core.setOutput("path", outputPath);
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message);
   }
 }
 
-export function pathsForIssue(
-  contentFolder: string,
-  issue: WebhookPayload
-): OutputPath {
+export function pathsForIssue(contentFolder: string, issue: WebhookPayload): OutputPath {
   const closed = new Date(issue.closed_at);
   const outputFolder = path.join(contentFolder, datePath(closed));
-  const outputPath = path.join(
-    outputFolder,
-    `${slugFromTitle(issue.title)}.md`
-  );
+  const outputPath = path.join(outputFolder, `${slugFromTitle(issue.title)}.md`);
 
   return { outputFolder, outputPath };
 }
 
 export function generateContent(
   issue: WebhookPayload,
-  options: GenerateContentOptions = {}
+  options: GenerateContentOptions = {},
 ): string {
   let imageAlt = undefined;
   let image = undefined;
@@ -98,7 +92,7 @@ export function generateContent(
     const matches = lead.match(youtubeUrl);
     if (matches) {
       youtube = matches[1];
-      lead = lead.replace(matches[0], '').trim();
+      lead = lead.replace(matches[0], "").trim();
     }
   }
 
@@ -110,42 +104,34 @@ export function generateContent(
     title = issue.title;
   }
 
-  const frontmatterTitle = title ? `title: ${JSON.stringify(title)}\r\n` : '';
+  const frontmatterTitle = title ? `title: ${JSON.stringify(title)}\r\n` : "";
 
   const frontmatterLead = `lead: ${JSON.stringify(lead)}\r\n`;
 
-  const frontmatterImage = image ? `image: ${JSON.stringify(image)}\r\n` : '';
+  const frontmatterImage = image ? `image: ${JSON.stringify(image)}\r\n` : "";
 
-  const frontmatterImageAlt = imageAlt
-    ? `imageAlt: ${JSON.stringify(imageAlt)}\r\n`
-    : '';
+  const frontmatterImageAlt = imageAlt ? `imageAlt: ${JSON.stringify(imageAlt)}\r\n` : "";
 
   const frontmatterDate = `date: ${formatDate(issue.closed_at)}\r\n`;
 
   const labels = issue.labels as Label[];
   const tags =
-    labels && labels.length
-      ? labels.map(label => label.name)
-      : options.defaultTags || [];
+    labels && labels.length ? labels.map((label) => label.name) : options.defaultTags || [];
 
-  const frontmatterTags = tags.length ? `tags: ${formatTags(tags)}\r\n` : '';
+  const frontmatterTags = tags.length ? `tags: ${formatTags(tags)}\r\n` : "";
 
-  const frontmatterYoutube = youtube ? `youtube: ${youtube}\r\n` : '';
+  const frontmatterYoutube = youtube ? `youtube: ${youtube}\r\n` : "";
 
   return `---\r\n${frontmatterTitle}${frontmatterLead}${frontmatterImage}${frontmatterImageAlt}${frontmatterDate}${frontmatterTags}${frontmatterYoutube}---\r\n`;
 }
 
 function datePath(utcDate: Date): string {
-  const date = new Date(
-    utcDate.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })
-  );
-  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(
-    date.getDate()
-  )}`;
+  const date = new Date(utcDate.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
 }
 
 function formatDate(date: string): string {
-  return date.replace('T', ' ').replace(/\.\d+Z$/, 'Z');
+  return date.replace("T", " ").replace(/\.\d+Z$/, "Z");
 }
 
 function formatTags(tags: string[]): string {
@@ -153,24 +139,24 @@ function formatTags(tags: string[]): string {
 }
 
 function pad(value: number): string {
-  return value.toString().padStart(2, '0');
+  return value.toString().padStart(2, "0");
 }
 
 function slugFromTitle(title: string): string {
   const slug = title
     .toLowerCase()
-    .replace(/['’]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
-  return slug || 'post';
+  return slug || "post";
 }
 
 function splitInput(value: string): string[] {
   return value
-    .split(',')
-    .map(item => item.trim())
-    .filter(item => item.length);
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises

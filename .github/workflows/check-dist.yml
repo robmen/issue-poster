@@ -35,6 +35,10 @@ jobs:
           node-version-file: .node-version
           cache: npm
 
+      - name: Install VITE+
+        id: install-vite-plus
+        run: npm install --global vite-plus@0.1.22
+
       - name: Install Dependencies
         id: install
         run: npm ci
