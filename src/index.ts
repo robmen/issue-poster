@@ -18,7 +18,13 @@ type OutputPath = {
   outputPath: string;
 };
 
+type GenerateContentOptions = {
+  defaultTags?: string[];
+};
+
 const extractImage = /^!\[(.+)\]\((.+)\)(.*)/s;
+const youtubeUrl =
+  /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?(?:[^#\s]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
 const writeFileAsync = promisify(writeFile);
 
 /**
@@ -36,7 +42,9 @@ export async function run(): Promise<void> {
 
     const contentFolder = core.getInput('contentFolder');
     const { outputFolder, outputPath } = pathsForIssue(contentFolder, issue);
-    const content = generateContent(issue);
+    const content = generateContent(issue, {
+      defaultTags: splitInput(core.getInput('defaultTags'))
+    });
 
     core.info(`outputPath: ${outputPath}`);
     core.info(`content: ${content}`);
@@ -57,16 +65,23 @@ export function pathsForIssue(
 ): OutputPath {
   const closed = new Date(issue.closed_at);
   const outputFolder = path.join(contentFolder, datePath(closed));
-  const outputPath = path.join(outputFolder, `${issue.number}.md`);
+  const outputPath = path.join(
+    outputFolder,
+    `${slugFromTitle(issue.title)}.md`
+  );
 
   return { outputFolder, outputPath };
 }
 
-export function generateContent(issue: WebhookPayload): string {
+export function generateContent(
+  issue: WebhookPayload,
+  options: GenerateContentOptions = {}
+): string {
   let imageAlt = undefined;
   let image = undefined;
   let lead = undefined;
   let title = undefined;
+  let youtube = undefined;
 
   if (issue.body) {
     const matches = issue.body.match(extractImage);
@@ -76,6 +91,14 @@ export function generateContent(issue: WebhookPayload): string {
       lead = matches[3]?.trim();
     } else {
       lead = issue.body.trim();
+    }
+  }
+
+  if (lead) {
+    const matches = lead.match(youtubeUrl);
+    if (matches) {
+      youtube = matches[1];
+      lead = lead.replace(matches[0], '').trim();
     }
   }
 
@@ -97,23 +120,57 @@ export function generateContent(issue: WebhookPayload): string {
     ? `imageAlt: ${JSON.stringify(imageAlt)}\r\n`
     : '';
 
-  const frontmatterDate = `date: ${issue.closed_at}\r\n`;
+  const frontmatterDate = `date: ${formatDate(issue.closed_at)}\r\n`;
 
   const labels = issue.labels as Label[];
-
-  const frontmatterTags =
+  const tags =
     labels && labels.length
-      ? `tags: ${JSON.stringify(labels.map(label => label.name))}\r\n`
-      : '';
+      ? labels.map(label => label.name)
+      : options.defaultTags || [];
 
-  return `---\r\n${frontmatterTitle}${frontmatterLead}${frontmatterImage}${frontmatterImageAlt}${frontmatterDate}${frontmatterTags}---\r\n`;
+  const frontmatterTags = tags.length ? `tags: ${formatTags(tags)}\r\n` : '';
+
+  const frontmatterYoutube = youtube ? `youtube: ${youtube}\r\n` : '';
+
+  return `---\r\n${frontmatterTitle}${frontmatterLead}${frontmatterImage}${frontmatterImageAlt}${frontmatterDate}${frontmatterTags}${frontmatterYoutube}---\r\n`;
 }
 
 function datePath(utcDate: Date): string {
   const date = new Date(
     utcDate.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })
   );
-  return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(
+    date.getDate()
+  )}`;
+}
+
+function formatDate(date: string): string {
+  return date.replace('T', ' ').replace(/\.\d+Z$/, 'Z');
+}
+
+function formatTags(tags: string[]): string {
+  return tags.length === 1 ? tags[0] : JSON.stringify(tags);
+}
+
+function pad(value: number): string {
+  return value.toString().padStart(2, '0');
+}
+
+function slugFromTitle(title: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || 'post';
+}
+
+function splitInput(value: string): string[] {
+  return value
+    .split(',')
+    .map(item => item.trim())
+    .filter(item => item.length);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises

@@ -1,230 +1,186 @@
-# Create a GitHub Action Using TypeScript
+# Issue Poster
 
-[![GitHub Super-Linter](https://github.com/actions/typescript-action/actions/workflows/linter.yml/badge.svg)](https://github.com/super-linter/super-linter)
-![CI](https://github.com/actions/typescript-action/actions/workflows/ci.yml/badge.svg)
-[![Check dist/](https://github.com/actions/typescript-action/actions/workflows/check-dist.yml/badge.svg)](https://github.com/actions/typescript-action/actions/workflows/check-dist.yml)
-[![CodeQL](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml)
-[![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
+Issue Poster is a GitHub Action that turns closed GitHub issues into content
+files. It is useful for lightweight publishing workflows where an issue is the
+drafting interface and closing the issue means "publish this as a post."
 
-Use this template to bootstrap the creation of a TypeScript action. :rocket:
+When the action runs on an issue payload, it:
 
-This template includes compilation support, tests, a validation workflow,
-publishing, and versioning guidance.
+1. Ignores the event unless the issue is closed.
+1. Builds a Markdown file containing YAML-style frontmatter.
+1. Writes the file under a date-based folder inside the configured content
+   folder.
+1. Exposes the created file path as the `path` output.
 
-If you are new, there's also a simpler introduction in the
-[Hello world JavaScript action repository](https://github.com/actions/hello-world-javascript-action).
+The action does not commit the generated file by itself. If you want the post to
+be saved back to the repository, add a separate commit step after this action.
 
-## Create Your Own Action
+## Generated Files
 
-To create your own action, you can use this repository as a template! Just
-follow the below instructions:
+For an issue closed at `2023-12-02T01:20:26Z`, the output folder is calculated
+in the `America/Los_Angeles` timezone. That timestamp is December 1 in Los
+Angeles, so an issue titled `Albert Rusnak: The Movie!` with the default content
+folder is written to:
 
-1. Click the **Use this template** button at the top of the repository
-1. Select **Create a new repository**
-1. Select an owner and name for your new repository
-1. Click **Create repository**
-1. Clone your new repository
-
-> [!CAUTION]
->
-> Make sure to remove or update the [`CODEOWNERS`](./CODEOWNERS) file! For
-> details on how to use this file, see
-> [About code owners](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners).
-
-## Initial Setup
-
-After you've cloned the repository to your local machine or codespace, you'll
-need to perform some initial setup steps before you can develop your action.
-
-> [!NOTE]
->
-> You'll need to have a reasonably modern version of
-> [Node.js](https://nodejs.org) handy (20.x or later should work!). If you are
-> using a version manager like [`nodenv`](https://github.com/nodenv/nodenv) or
-> [`nvm`](https://github.com/nvm-sh/nvm), this template has a `.node-version`
-> file at the root of the repository that will be used to automatically switch
-> to the correct version when you `cd` into the repository. Additionally, this
-> `.node-version` file is used by GitHub Actions in any `actions/setup-node`
-> actions.
-
-1. :hammer_and_wrench: Install the dependencies
-
-   ```bash
-   npm install
-   ```
-
-1. :building_construction: Package the TypeScript for distribution
-
-   ```bash
-   npm run bundle
-   ```
-
-1. :white_check_mark: Run the tests
-
-   ```bash
-   $ npm test
-
-   PASS  ./index.test.js
-     ✓ throws invalid number (3ms)
-     ✓ wait 500 ms (504ms)
-     ✓ test runs (95ms)
-
-   ...
-   ```
-
-## Update the Action Metadata
-
-The [`action.yml`](action.yml) file defines metadata about your action, such as
-input(s) and output(s). For details about this file, see
-[Metadata syntax for GitHub Actions](https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions).
-
-When you copy this repository, update `action.yml` with the name, description,
-inputs, and outputs for your action.
-
-## Update the Action Code
-
-The [`src/`](./src/) directory is the heart of your action! This contains the
-source code that will be run when your action is invoked. You can replace the
-contents of this directory with your own code.
-
-There are a few things to keep in mind when writing your action code:
-
-- Most GitHub Actions toolkit and CI/CD operations are processed asynchronously.
-  In `main.ts`, you will see that the action is run in an `async` function.
-
-  ```javascript
-  import * as core from '@actions/core'
-  //...
-
-  async function run() {
-    try {
-      //...
-    } catch (error) {
-      core.setFailed(error.message)
-    }
-  }
-  ```
-
-  For more information about the GitHub Actions toolkit, see the
-  [documentation](https://github.com/actions/toolkit/blob/master/README.md).
-
-So, what are you waiting for? Go ahead and start customizing your action!
-
-1. Create a new branch
-
-   ```bash
-   git checkout -b releases/v1
-   ```
-
-1. Replace the contents of `src/` with your action code
-1. Add tests to `__tests__/` for your source code
-1. Format, test, and build the action
-
-   ```bash
-   npm run all
-   ```
-
-   > [!WARNING]
-   >
-   > This step is important! It will run [`ncc`](https://github.com/vercel/ncc)
-   > to build the final JavaScript action code with all dependencies included.
-   > If you do not run this step, your action will not work correctly when it is
-   > used in a workflow. This step also includes the `--license` option for
-   > `ncc`, which will create a license file for all of the production node
-   > modules used in your project.
-
-1. Commit your changes
-
-   ```bash
-   git add .
-   git commit -m "My first action is ready!"
-   ```
-
-1. Push them to your repository
-
-   ```bash
-   git push -u origin releases/v1
-   ```
-
-1. Create a pull request and get feedback on your action
-1. Merge the pull request into the `main` branch
-
-Your action is now published! :rocket:
-
-For information about versioning your action, see
-[Versioning](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
-in the GitHub Actions toolkit.
-
-## Validate the Action
-
-You can now validate the action by referencing it in a workflow file. For
-example, [`ci.yml`](./.github/workflows/ci.yml) demonstrates how to reference an
-action in the same repository.
-
-```yaml
-steps:
-  - name: Checkout
-    id: checkout
-    uses: actions/checkout@v4
-
-  - name: Test Local Action
-    id: test-action
-    uses: ./
-    with:
-      milliseconds: 1000
-
-  - name: Print Output
-    id: output
-    run: echo "${{ steps.test-action.outputs.time }}"
+```text
+src/content/blog/2023/12/01/albert-rusnak-the-movie.md
 ```
 
-For example workflow runs, check out the
-[Actions tab](https://github.com/actions/typescript-action/actions)! :rocket:
+The file contains frontmatter only:
+
+```yaml
+---
+title: "Issue title"
+lead: "Issue body"
+image: "https://example.com/image.png"
+imageAlt: "Image alt text"
+date: 2023-12-02 01:20:26Z
+tags: ["label-one","label-two"]
+youtube: I1XJYdg3kWQ
+---
+```
+
+Fields are generated from the issue like this:
+
+- `lead`: The issue body, trimmed. If the body is empty, the issue title is used.
+- `title`: The issue title, but only when the issue body provided the `lead`.
+- `image`: The URL from a leading Markdown image in the issue body.
+- `imageAlt`: The alt text from a leading Markdown image in the issue body.
+- `date`: The issue `closed_at` timestamp.
+- `tags`: The issue label names. If the issue has no labels, `defaultTags` is used.
+- `youtube`: The video ID from a YouTube URL in the issue body.
+
+If the issue body starts with a Markdown image, the image is removed from the
+lead and stored separately:
+
+```markdown
+![Post image](https://example.com/post-image.png)
+
+This becomes the lead text.
+```
+
+For a short post, leave the body empty and put the whole post in the issue
+title. The generated file will use the title as the `lead` and omit `title`:
+
+```yaml
+---
+lead: Albert Rusnak The Movie. This is really cool from the Sounders.
+date: 2024-02-11 22:38:15Z
+tags: personal
+---
+```
+
+If a short post needs a YouTube embed, put the YouTube URL in the issue body.
+The URL is removed from `lead` and stored as `youtube`.
+
+## Posting Short Updates
+
+From GitHub CLI:
+
+```bash
+gh issue create --title "Albert Rusnak The Movie. This is really cool from the Sounders." --label personal
+```
+
+Then close the issue to publish it:
+
+```bash
+gh issue close <issue-number>
+```
+
+From the GitHub mobile app, create an issue with the short update as the title,
+apply labels if needed, then close the issue when it is ready to publish.
 
 ## Usage
 
-After testing, you can create version tag(s) that developers can use to
-reference different stable versions of your action. For more information, see
-[Versioning](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
-in the GitHub Actions toolkit.
-
-To include the action in a workflow in another repository, you can use the
-`uses` syntax with the `@` symbol to reference a specific branch, tag, or commit
-hash.
+Add the action to a workflow that runs when issues are closed:
 
 ```yaml
-steps:
-  - name: Checkout
-    id: checkout
-    uses: actions/checkout@v4
+name: Publish closed issues
 
-  - name: Test Local Action
-    id: test-action
-    uses: actions/typescript-action@v1 # Commit with the `v1` tag
-    with:
-      milliseconds: 1000
+on:
+  issues:
+    types: [closed]
 
-  - name: Print Output
-    id: output
-    run: echo "${{ steps.test-action.outputs.time }}"
+permissions:
+  contents: write
+  issues: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create post from issue
+        id: issue-poster
+        uses: robmen/issue-poster@v1
+        with:
+          contentFolder: src/content/blog
+
+      - name: Commit generated post
+        if: steps.issue-poster.outputs.path != ''
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Add post from issue
+          file_pattern: ${{ steps.issue-poster.outputs.path }}
 ```
 
-## Publishing a new release
+For local testing from this repository, use the local action reference:
 
-This project includes a helper script designed to streamline the process of
-tagging and pushing new releases for GitHub Actions.
+```yaml
+- name: Create post from issue
+  id: issue-poster
+  uses: ./
+  with:
+    contentFolder: src/content/blog
+```
 
-GitHub Actions allows users to select a specific version of the action to use,
-based on release tags. Our script simplifies this process by performing the
-following steps:
+## Inputs
 
-1. **Retrieving the latest release tag:** The script starts by fetching the most
-   recent release tag by looking at the local data available in your repository.
-1. **Prompting for a new release tag:** The user is then prompted to enter a new
-   release tag. To assist with this, the script displays the latest release tag
-   and provides a regular expression to validate the format of the new tag.
-1. **Tagging the new release:** Once a valid new tag is entered, the script tags
-   the new release.
-1. **Pushing the new tag to the remote:** Finally, the script pushes the new tag
-   to the remote repository. From here, you will need to create a new release in
-   GitHub and users can easily reference the new tag in their workflows.
+| Name | Required | Default | Description |
+| --- | --- | --- | --- |
+| `contentFolder` | Yes | `src/content/blog` | Root folder where generated posts are written. |
+| `defaultTags` | No | `personal` | Comma-separated tags to use when the issue has no labels. |
+
+## Outputs
+
+| Name | Description |
+| --- | --- |
+| `path` | Path to the generated Markdown file. Empty when the event was not for a closed issue. |
+
+## Development
+
+This action is written in TypeScript and runs on Node.js 20.
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run tests:
+
+```bash
+npm test
+```
+
+Check formatting:
+
+```bash
+npm run format:check
+```
+
+Build the distributable action with VITE+:
+
+```bash
+npm run package
+```
+
+Before publishing changes to the action implementation, rebuild `dist/index.js`
+so workflows that consume the repository get the updated bundled code:
+
+```bash
+npm run bundle
+```

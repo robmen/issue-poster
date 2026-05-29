@@ -11,6 +11,10 @@ inputs:
     description: 'Content folder'
     required: true
     default: 'src/content/blog'
+  defaultTags:
+    description: 'Comma-separated tags to use when the issue has no labels'
+    required: false
+    default: 'personal'
 
 outputs:
   path:

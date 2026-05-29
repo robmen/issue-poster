@@ -1,27 +1,29 @@
 {
-  "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
-  "version": "0.0.0",
-  "author": "",
+  "name": "issue-poster",
+  "description": "GitHub Action that publishes closed GitHub issues as Markdown posts",
+  "version": "0.1.0",
+  "author": "Rob Mensching",
   "private": true,
-  "homepage": "https://github.com/actions/typescript-action",
+  "homepage": "https://github.com/robmen/issue-poster#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/robmen/issue-poster.git"
   },
   "bugs": {
-    "url": "https://github.com/actions/typescript-action/issues"
+    "url": "https://github.com/robmen/issue-poster/issues"
   },
   "keywords": [
-    "actions",
-    "node",
-    "setup"
+    "astro",
+    "blog",
+    "github-action",
+    "issues",
+    "markdown"
   ],
   "exports": {
     ".": "./dist/index.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0"
   },
   "scripts": {
     "bundle": "npm run format:write && npm run package",
@@ -30,7 +32,7 @@
     "format:write": "prettier --write **/*.ts",
     "format:check": "prettier --check **/*.ts",
     "lint": "npx eslint . -c ./.github/linters/.eslintrc.yml",
-    "package": "ncc build src/index.ts --license licenses.txt",
+    "package": "vp build",
     "package:watch": "npm run package -- --watch",
     "test": "jest",
     "all": "npm run format:write && npm run lint && npm run test && npm run coverage && npm run package"
@@ -75,7 +77,6 @@
     "@types/node": "^20.10.1",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
     "@typescript-eslint/parser": "^6.13.1",
-    "@vercel/ncc": "^0.38.1",
     "eslint": "^8.54.0",
     "eslint-plugin-github": "^4.10.1",
     "eslint-plugin-jest": "^27.6.0",
