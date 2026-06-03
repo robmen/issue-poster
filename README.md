@@ -33,6 +33,7 @@ The file contains frontmatter only:
 title: "Issue title"
 lead: "Issue body"
 image: "https://example.com/image.png"
+imageUrl: "https://example.com/image.png"
 imageAlt: "Image alt text"
 date: 2023-12-02 01:20:26Z
 tags: ["label-one", "label-two"]
@@ -44,7 +45,8 @@ Fields are generated from the issue like this:
 
 - `lead`: The issue body, trimmed. If the body is empty, the issue title is used.
 - `title`: The issue title, but only when the issue body provided the `lead`.
-- `image`: The URL from a leading Markdown image in the issue body.
+- `image`: The local image path from a leading Markdown image or media directive.
+- `imageUrl`: The remote HTTP image URL from a leading Markdown image or media directive.
 - `imageAlt`: The alt text from a leading Markdown image in the issue body.
 - `date`: The issue `closed_at` timestamp.
 - `tags`: The issue label names. If the issue has no labels, `defaultTags` is used.
@@ -73,6 +75,17 @@ tags: personal
 If a short post needs a YouTube embed, put the YouTube URL in the issue body.
 The URL is removed from `lead` and stored as `youtube`.
 
+You can also put a media URL on the first line by prefixing it with `!`. The
+space after `!` is optional:
+
+```text
+!https://youtu.be/I1XJYdg3kWQ
+This becomes the lead text.
+```
+
+YouTube URLs become `youtube` frontmatter. Other HTTP URLs become `imageUrl`
+frontmatter. Local image paths become `image` frontmatter.
+
 ## Posting Short Updates
 
 From GitHub CLI:
@@ -92,7 +105,8 @@ apply labels if needed, then close the issue when it is ready to publish.
 
 ## Usage
 
-Add the action to a workflow that runs when issues are closed:
+Add the action to a workflow that runs when issues are closed. Pin the action to
+a full commit SHA instead of a tag because tags can move:
 
 ```yaml
 name: Publish closed issues
@@ -115,16 +129,18 @@ jobs:
 
       - name: Create post from issue
         id: issue-poster
-        uses: robmen/issue-poster@v1
+        uses: robmen/issue-poster@<full-commit-sha>
         with:
           contentFolder: src/content/blog
 
       - name: Commit generated post
         if: steps.issue-poster.outputs.path != ''
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: Add post from issue
-          file_pattern: ${{ steps.issue-poster.outputs.path }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${{ steps.issue-poster.outputs.path }}"
+          git commit -m "Add post from issue #${{ github.event.issue.number }}"
+          git push
 ```
 
 For local testing from this repository, use the local action reference:

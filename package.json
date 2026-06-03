@@ -25,10 +25,10 @@
   },
   "scripts": {
     "bundle": "npm run format:write && vp build",
-    "check": "vp check src __tests__ .github action.yml package.json tsconfig.json vite.config.js README.md",
+    "check": "vp check src __tests__ .github docs action.yml package.json tsconfig.json vite.config.js README.md",
     "ci-test": "vp test run",
-    "format:write": "vp fmt src __tests__ .github action.yml package.json tsconfig.json vite.config.js README.md --write",
-    "format:check": "vp fmt src __tests__ .github action.yml package.json tsconfig.json vite.config.js README.md --check",
+    "format:write": "vp fmt src __tests__ .github docs action.yml package.json tsconfig.json vite.config.js README.md --write",
+    "format:check": "vp fmt src __tests__ .github docs action.yml package.json tsconfig.json vite.config.js README.md --check",
     "lint": "npm run check",
     "package": "vp build",
     "package:watch": "vp build --watch",

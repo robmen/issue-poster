@@ -23,6 +23,7 @@ type GenerateContentOptions = {
 };
 
 const extractImage = /^!\[(.+)\]\((.+)\)(.*)/s;
+const extractMediaDirective = /^!(?!\[)[^\S\r\n]*(\S+)(?:[^\S\r\n]*(?:\r?\n|\r)([\s\S]*))?$/;
 const youtubeUrl =
   /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?(?:[^#\s]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
 const writeFileAsync = promisify(writeFile);
@@ -73,22 +74,42 @@ export function generateContent(
 ): string {
   let imageAlt = undefined;
   let image = undefined;
+  let imageUrl = undefined;
   let lead = undefined;
   let title = undefined;
   let youtube = undefined;
 
   if (issue.body) {
-    const matches = issue.body.match(extractImage);
-    if (matches) {
-      imageAlt = matches[1];
-      image = matches[2];
-      lead = matches[3]?.trim();
+    const mediaMatches = issue.body.match(extractMediaDirective);
+    if (mediaMatches) {
+      const mediaUrl = mediaMatches[1];
+      const youtubeMatches = mediaUrl.match(youtubeUrl);
+      if (youtubeMatches) {
+        youtube = youtubeMatches[1];
+      } else if (isRemoteUrl(mediaUrl)) {
+        imageUrl = mediaUrl;
+      } else {
+        image = mediaUrl;
+      }
+
+      lead = mediaMatches[2]?.trim();
     } else {
-      lead = issue.body.trim();
+      const matches = issue.body.match(extractImage);
+      if (matches) {
+        imageAlt = matches[1];
+        if (isRemoteUrl(matches[2])) {
+          imageUrl = matches[2];
+        } else {
+          image = matches[2];
+        }
+        lead = matches[3]?.trim();
+      } else {
+        lead = issue.body.trim();
+      }
     }
   }
 
-  if (lead) {
+  if (lead && !youtube) {
     const matches = lead.match(youtubeUrl);
     if (matches) {
       youtube = matches[1];
@@ -110,6 +131,8 @@ export function generateContent(
 
   const frontmatterImage = image ? `image: ${JSON.stringify(image)}\r\n` : "";
 
+  const frontmatterImageUrl = imageUrl ? `imageUrl: ${JSON.stringify(imageUrl)}\r\n` : "";
+
   const frontmatterImageAlt = imageAlt ? `imageAlt: ${JSON.stringify(imageAlt)}\r\n` : "";
 
   const frontmatterDate = `date: ${formatDate(issue.closed_at)}\r\n`;
@@ -122,7 +145,7 @@ export function generateContent(
 
   const frontmatterYoutube = youtube ? `youtube: ${youtube}\r\n` : "";
 
-  return `---\r\n${frontmatterTitle}${frontmatterLead}${frontmatterImage}${frontmatterImageAlt}${frontmatterDate}${frontmatterTags}${frontmatterYoutube}---\r\n`;
+  return `---\r\n${frontmatterTitle}${frontmatterLead}${frontmatterImage}${frontmatterImageUrl}${frontmatterImageAlt}${frontmatterDate}${frontmatterTags}${frontmatterYoutube}---\r\n`;
 }
 
 function datePath(utcDate: Date): string {
@@ -136,6 +159,10 @@ function formatDate(date: string): string {
 
 function formatTags(tags: string[]): string {
   return tags.length === 1 ? tags[0] : JSON.stringify(tags);
+}
+
+function isRemoteUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
 }
 
 function pad(value: number): string {

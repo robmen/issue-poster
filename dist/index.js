@@ -19020,6 +19020,7 @@ var import_core = /* @__PURE__ */ __toESM(require_core());
 var import_github = /* @__PURE__ */ __toESM(require_github());
 var import_io = /* @__PURE__ */ __toESM(require_io());
 var extractImage = /^!\[(.+)\]\((.+)\)(.*)/s;
+var extractMediaDirective = /^!(?!\[)[^\S\r\n]*(\S+)(?:[^\S\r\n]*(?:\r?\n|\r)([\s\S]*))?$/;
 var youtubeUrl = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?(?:[^#\s]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
 var writeFileAsync = (0, util.promisify)(fs.writeFile);
 /**
@@ -19052,18 +19053,30 @@ function pathsForIssue(contentFolder, issue) {
 function generateContent(issue, options = {}) {
 	let imageAlt = void 0;
 	let image = void 0;
+	let imageUrl = void 0;
 	let lead = void 0;
 	let title = void 0;
 	let youtube = void 0;
 	if (issue.body) {
-		const matches = issue.body.match(extractImage);
-		if (matches) {
-			imageAlt = matches[1];
-			image = matches[2];
-			lead = matches[3]?.trim();
-		} else lead = issue.body.trim();
+		const mediaMatches = issue.body.match(extractMediaDirective);
+		if (mediaMatches) {
+			const mediaUrl = mediaMatches[1];
+			const youtubeMatches = mediaUrl.match(youtubeUrl);
+			if (youtubeMatches) youtube = youtubeMatches[1];
+			else if (isRemoteUrl(mediaUrl)) imageUrl = mediaUrl;
+			else image = mediaUrl;
+			lead = mediaMatches[2]?.trim();
+		} else {
+			const matches = issue.body.match(extractImage);
+			if (matches) {
+				imageAlt = matches[1];
+				if (isRemoteUrl(matches[2])) imageUrl = matches[2];
+				else image = matches[2];
+				lead = matches[3]?.trim();
+			} else lead = issue.body.trim();
+		}
 	}
-	if (lead) {
+	if (lead && !youtube) {
 		const matches = lead.match(youtubeUrl);
 		if (matches) {
 			youtube = matches[1];
@@ -19075,11 +19088,12 @@ function generateContent(issue, options = {}) {
 	const frontmatterTitle = title ? `title: ${JSON.stringify(title)}\r\n` : "";
 	const frontmatterLead = `lead: ${JSON.stringify(lead)}\r\n`;
 	const frontmatterImage = image ? `image: ${JSON.stringify(image)}\r\n` : "";
+	const frontmatterImageUrl = imageUrl ? `imageUrl: ${JSON.stringify(imageUrl)}\r\n` : "";
 	const frontmatterImageAlt = imageAlt ? `imageAlt: ${JSON.stringify(imageAlt)}\r\n` : "";
 	const frontmatterDate = `date: ${formatDate(issue.closed_at)}\r\n`;
 	const labels = issue.labels;
 	const tags = labels && labels.length ? labels.map((label) => label.name) : options.defaultTags || [];
-	return `---\r\n${frontmatterTitle}${frontmatterLead}${frontmatterImage}${frontmatterImageAlt}${frontmatterDate}${tags.length ? `tags: ${formatTags(tags)}\r\n` : ""}${youtube ? `youtube: ${youtube}\r\n` : ""}---\r\n`;
+	return `---\r\n${frontmatterTitle}${frontmatterLead}${frontmatterImage}${frontmatterImageUrl}${frontmatterImageAlt}${frontmatterDate}${tags.length ? `tags: ${formatTags(tags)}\r\n` : ""}${youtube ? `youtube: ${youtube}\r\n` : ""}---\r\n`;
 }
 function datePath(utcDate) {
 	const date = new Date(utcDate.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
@@ -19090,6 +19104,9 @@ function formatDate(date) {
 }
 function formatTags(tags) {
 	return tags.length === 1 ? tags[0] : JSON.stringify(tags);
+}
+function isRemoteUrl(value) {
+	return /^https?:\/\//i.test(value);
 }
 function pad(value) {
 	return value.toString().padStart(2, "0");
