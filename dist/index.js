@@ -19029,10 +19029,11 @@ var writeFileAsync = (0, util.promisify)(fs.writeFile);
 */
 async function run() {
 	try {
-		const issue = import_github.context.payload.issue;
-		if (!issue || !issue.closed_at) return;
-		const { outputFolder, outputPath } = pathsForIssue(import_core.getInput("contentFolder"), issue);
-		const content = generateContent(issue, { defaultTags: splitInput(import_core.getInput("defaultTags")) });
+		const sources = splitInput(import_core.getInput("sources")).map((source) => source.toLowerCase());
+		const postSource = sourceFromPayload(import_github.context.payload, sources);
+		if (!postSource) return;
+		const { outputFolder, outputPath } = pathsForPostSource(import_core.getInput("contentFolder"), postSource);
+		const content = generateContent(postSource, { defaultTags: splitInput(import_core.getInput("defaultTags")) });
 		import_core.info(`outputPath: ${outputPath}`);
 		import_core.info(`content: ${content}`);
 		await import_io.mkdirP(outputFolder);
@@ -19042,23 +19043,23 @@ async function run() {
 		if (error instanceof Error) import_core.setFailed(error.message);
 	}
 }
-function pathsForIssue(contentFolder, issue) {
-	const closed = new Date(issue.closed_at);
-	const outputFolder = path.join(contentFolder, datePath(closed));
+function pathsForPostSource(contentFolder, source) {
+	const published = new Date(source.publishedAt);
+	const outputFolder = path.join(contentFolder, datePath(published));
 	return {
 		outputFolder,
-		outputPath: path.join(outputFolder, `${slugFromTitle(issue.title)}.md`)
+		outputPath: path.join(outputFolder, `${slugFromTitle(source.title)}.md`)
 	};
 }
-function generateContent(issue, options = {}) {
+function generateContent(source, options = {}) {
 	let imageAlt = void 0;
 	let image = void 0;
 	let imageUrl = void 0;
 	let lead = void 0;
 	let title = void 0;
 	let youtube = void 0;
-	if (issue.body) {
-		const mediaMatches = issue.body.match(extractMediaDirective);
+	if (source.body) {
+		const mediaMatches = source.body.match(extractMediaDirective);
 		if (mediaMatches) {
 			const mediaUrl = mediaMatches[1];
 			const youtubeMatches = mediaUrl.match(youtubeUrl);
@@ -19067,13 +19068,13 @@ function generateContent(issue, options = {}) {
 			else image = mediaUrl;
 			lead = mediaMatches[2]?.trim();
 		} else {
-			const matches = issue.body.match(extractImage);
+			const matches = source.body.match(extractImage);
 			if (matches) {
 				imageAlt = matches[1];
 				if (isRemoteUrl(matches[2])) imageUrl = matches[2];
 				else image = matches[2];
 				lead = matches[3]?.trim();
-			} else lead = issue.body.trim();
+			} else lead = source.body.trim();
 		}
 	}
 	if (lead && !youtube) {
@@ -19083,17 +19084,42 @@ function generateContent(issue, options = {}) {
 			lead = lead.replace(matches[0], "").trim();
 		}
 	}
-	if (!lead) lead = issue.title;
-	else title = issue.title;
+	if (!lead) lead = source.title;
+	else title = source.title;
 	const frontmatterTitle = title ? `title: ${JSON.stringify(title)}\r\n` : "";
 	const frontmatterLead = `lead: ${JSON.stringify(lead)}\r\n`;
 	const frontmatterImage = image ? `image: ${JSON.stringify(image)}\r\n` : "";
 	const frontmatterImageUrl = imageUrl ? `imageUrl: ${JSON.stringify(imageUrl)}\r\n` : "";
 	const frontmatterImageAlt = imageAlt ? `imageAlt: ${JSON.stringify(imageAlt)}\r\n` : "";
-	const frontmatterDate = `date: ${formatDate(issue.closed_at)}\r\n`;
-	const labels = issue.labels;
+	const frontmatterDate = `date: ${formatDate(source.publishedAt)}\r\n`;
+	const labels = source.labels;
 	const tags = labels && labels.length ? labels.map((label) => label.name) : options.defaultTags || [];
 	return `---\r\n${frontmatterTitle}${frontmatterLead}${frontmatterImage}${frontmatterImageUrl}${frontmatterImageAlt}${frontmatterDate}${tags.length ? `tags: ${formatTags(tags)}\r\n` : ""}${youtube ? `youtube: ${youtube}\r\n` : ""}---\r\n`;
+}
+function sourceFromPayload(payload, sources) {
+	const enabledSources = sources.length ? sources : ["issues"];
+	if (sourceEnabled(enabledSources, "issues") && payload.issue?.closed_at) return postSourceFromIssue(payload.issue);
+	if (sourceEnabled(enabledSources, "discussions") && payload.action === "created" && payload.discussion?.created_at) return postSourceFromDiscussion(payload.discussion);
+}
+function postSourceFromIssue(issue) {
+	return {
+		body: issue.body,
+		labels: issue.labels,
+		publishedAt: issue.closed_at,
+		title: issue.title
+	};
+}
+function sourceEnabled(sources, source) {
+	const singular = source.replace(/s$/, "");
+	return sources.includes(source) || sources.includes(singular);
+}
+function postSourceFromDiscussion(discussion) {
+	return {
+		body: discussion.body,
+		labels: discussion.labels,
+		publishedAt: discussion.created_at,
+		title: discussion.title
+	};
 }
 function datePath(utcDate) {
 	const date = new Date(utcDate.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
@@ -19120,5 +19146,6 @@ function splitInput(value) {
 run();
 //#endregion
 exports.generateContent = generateContent;
-exports.pathsForIssue = pathsForIssue;
+exports.pathsForPostSource = pathsForPostSource;
 exports.run = run;
+exports.sourceFromPayload = sourceFromPayload;

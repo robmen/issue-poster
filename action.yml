@@ -1,5 +1,5 @@
-name: "Create posts from issues"
-description: "Create posts from the issue tracker"
+name: "Create posts from issues or discussions"
+description: "Create posts from closed issues or new discussions"
 author: "Rob Mensching"
 
 branding:
@@ -12,9 +12,13 @@ inputs:
     required: true
     default: "src/content/blog"
   defaultTags:
-    description: "Comma-separated tags to use when the issue has no labels"
+    description: "Comma-separated tags to use when the source has no labels"
     required: false
     default: "personal"
+  sources:
+    description: "Comma-separated post sources to process: issues, discussions, or both"
+    required: false
+    default: "issues"
 
 outputs:
   path:

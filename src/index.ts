@@ -1,7 +1,6 @@
 /**
  * The entrypoint for the action.
  */
-import type { WebhookPayload } from "@actions/github/lib/interfaces";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as io from "@actions/io";
@@ -13,9 +12,32 @@ type Label = {
   name: string;
 };
 
+type SourcePayload = {
+  action?: string;
+  discussion?: {
+    body?: string;
+    created_at?: string;
+    labels?: Label[];
+    title: string;
+  };
+  issue?: {
+    body?: string;
+    closed_at?: string;
+    labels?: Label[];
+    title: string;
+  };
+};
+
 type OutputPath = {
   outputFolder: string;
   outputPath: string;
+};
+
+type PostSource = {
+  body?: string;
+  labels?: Label[];
+  publishedAt: string;
+  title: string;
 };
 
 type GenerateContentOptions = {
@@ -34,16 +56,16 @@ const writeFileAsync = promisify(writeFile);
  */
 export async function run(): Promise<void> {
   try {
-    const issue = github.context.payload.issue;
+    const sources = splitInput(core.getInput("sources")).map((source) => source.toLowerCase());
+    const postSource = sourceFromPayload(github.context.payload as SourcePayload, sources);
 
-    // Only process closed issues
-    if (!issue || !issue.closed_at) {
+    if (!postSource) {
       return;
     }
 
     const contentFolder = core.getInput("contentFolder");
-    const { outputFolder, outputPath } = pathsForIssue(contentFolder, issue);
-    const content = generateContent(issue, {
+    const { outputFolder, outputPath } = pathsForPostSource(contentFolder, postSource);
+    const content = generateContent(postSource, {
       defaultTags: splitInput(core.getInput("defaultTags")),
     });
 
@@ -60,18 +82,15 @@ export async function run(): Promise<void> {
   }
 }
 
-export function pathsForIssue(contentFolder: string, issue: WebhookPayload): OutputPath {
-  const closed = new Date(issue.closed_at);
-  const outputFolder = path.join(contentFolder, datePath(closed));
-  const outputPath = path.join(outputFolder, `${slugFromTitle(issue.title)}.md`);
+export function pathsForPostSource(contentFolder: string, source: PostSource): OutputPath {
+  const published = new Date(source.publishedAt);
+  const outputFolder = path.join(contentFolder, datePath(published));
+  const outputPath = path.join(outputFolder, `${slugFromTitle(source.title)}.md`);
 
   return { outputFolder, outputPath };
 }
 
-export function generateContent(
-  issue: WebhookPayload,
-  options: GenerateContentOptions = {},
-): string {
+export function generateContent(source: PostSource, options: GenerateContentOptions = {}): string {
   let imageAlt = undefined;
   let image = undefined;
   let imageUrl = undefined;
@@ -79,8 +98,8 @@ export function generateContent(
   let title = undefined;
   let youtube = undefined;
 
-  if (issue.body) {
-    const mediaMatches = issue.body.match(extractMediaDirective);
+  if (source.body) {
+    const mediaMatches = source.body.match(extractMediaDirective);
     if (mediaMatches) {
       const mediaUrl = mediaMatches[1];
       const youtubeMatches = mediaUrl.match(youtubeUrl);
@@ -94,7 +113,7 @@ export function generateContent(
 
       lead = mediaMatches[2]?.trim();
     } else {
-      const matches = issue.body.match(extractImage);
+      const matches = source.body.match(extractImage);
       if (matches) {
         imageAlt = matches[1];
         if (isRemoteUrl(matches[2])) {
@@ -104,7 +123,7 @@ export function generateContent(
         }
         lead = matches[3]?.trim();
       } else {
-        lead = issue.body.trim();
+        lead = source.body.trim();
       }
     }
   }
@@ -117,12 +136,12 @@ export function generateContent(
     }
   }
 
-  // If the lead was NOT provided via the body, then use the issue title as the lead
+  // If the lead was NOT provided via the body, then use the source title as the lead
   if (!lead) {
-    lead = issue.title;
+    lead = source.title;
   } else {
-    // use the issue title as the title
-    title = issue.title;
+    // use the source title as the title
+    title = source.title;
   }
 
   const frontmatterTitle = title ? `title: ${JSON.stringify(title)}\r\n` : "";
@@ -135,9 +154,9 @@ export function generateContent(
 
   const frontmatterImageAlt = imageAlt ? `imageAlt: ${JSON.stringify(imageAlt)}\r\n` : "";
 
-  const frontmatterDate = `date: ${formatDate(issue.closed_at)}\r\n`;
+  const frontmatterDate = `date: ${formatDate(source.publishedAt)}\r\n`;
 
-  const labels = issue.labels as Label[];
+  const labels = source.labels;
   const tags =
     labels && labels.length ? labels.map((label) => label.name) : options.defaultTags || [];
 
@@ -146,6 +165,54 @@ export function generateContent(
   const frontmatterYoutube = youtube ? `youtube: ${youtube}\r\n` : "";
 
   return `---\r\n${frontmatterTitle}${frontmatterLead}${frontmatterImage}${frontmatterImageUrl}${frontmatterImageAlt}${frontmatterDate}${frontmatterTags}${frontmatterYoutube}---\r\n`;
+}
+
+export function sourceFromPayload(
+  payload: SourcePayload,
+  sources: string[],
+): PostSource | undefined {
+  const enabledSources = sources.length ? sources : ["issues"];
+
+  if (sourceEnabled(enabledSources, "issues") && payload.issue?.closed_at) {
+    return postSourceFromIssue(payload.issue);
+  }
+
+  if (
+    sourceEnabled(enabledSources, "discussions") &&
+    payload.action === "created" &&
+    payload.discussion?.created_at
+  ) {
+    return postSourceFromDiscussion(payload.discussion);
+  }
+
+  return undefined;
+}
+
+function postSourceFromIssue(
+  issue: NonNullable<SourcePayload["issue"]> & { closed_at: string },
+): PostSource {
+  return {
+    body: issue.body,
+    labels: issue.labels,
+    publishedAt: issue.closed_at,
+    title: issue.title,
+  };
+}
+
+function sourceEnabled(sources: string[], source: "issues" | "discussions"): boolean {
+  const singular = source.replace(/s$/, "");
+  return sources.includes(source) || sources.includes(singular);
+}
+
+function postSourceFromDiscussion(
+  discussion: NonNullable<SourcePayload["discussion"]> & { created_at: string },
+): PostSource {
+  return {
+    body: discussion.body,
+    labels: discussion.labels,
+    publishedAt: discussion.created_at,
+    title: discussion.title,
+  };
 }
 
 function datePath(utcDate: Date): string {

@@ -1,12 +1,12 @@
 # Issue Poster
 
-Issue Poster is a GitHub Action that turns closed GitHub issues into content
-files. It is useful for lightweight publishing workflows where an issue is the
-drafting interface and closing the issue means "publish this as a post."
+Issue Poster is a GitHub Action that turns closed GitHub issues or new GitHub
+Discussions into content files. It is useful for lightweight publishing
+workflows where Issues are draftable posts and Discussions are fast posts.
 
-When the action runs on an issue payload, it:
+When the action runs on a configured source payload, it:
 
-1. Ignores the event unless the issue is closed.
+1. Ignores the event unless the configured source is publishable.
 1. Builds a Markdown file containing YAML-style frontmatter.
 1. Writes the file under a date-based folder inside the configured content
    folder.
@@ -17,10 +17,10 @@ be saved back to the repository, add a separate commit step after this action.
 
 ## Generated Files
 
-For an issue closed at `2023-12-02T01:20:26Z`, the output folder is calculated
-in the `America/Los_Angeles` timezone. That timestamp is December 1 in Los
-Angeles, so an issue titled `Albert Rusnak: The Movie!` with the default content
-folder is written to:
+For an issue closed or discussion created at `2023-12-02T01:20:26Z`, the output
+folder is calculated in the `America/Los_Angeles` timezone. That timestamp is
+December 1 in Los Angeles, so a source titled `Albert Rusnak: The Movie!` with
+the default content folder is written to:
 
 ```text
 src/content/blog/2023/12/01/albert-rusnak-the-movie.md
@@ -41,15 +41,15 @@ youtube: I1XJYdg3kWQ
 ---
 ```
 
-Fields are generated from the issue like this:
+Fields are generated from the source like this:
 
-- `lead`: The issue body, trimmed. If the body is empty, the issue title is used.
-- `title`: The issue title, but only when the issue body provided the `lead`.
+- `lead`: The source body, trimmed. If the body is empty, the source title is used.
+- `title`: The source title, but only when the source body provided the `lead`.
 - `image`: The local image path from a leading Markdown image or media directive.
 - `imageUrl`: The remote HTTP image URL from a leading Markdown image or media directive.
 - `imageAlt`: The alt text from a leading Markdown image in the issue body.
-- `date`: The issue `closed_at` timestamp.
-- `tags`: The issue label names. If the issue has no labels, `defaultTags` is used.
+- `date`: The issue `closed_at` timestamp or discussion `created_at` timestamp.
+- `tags`: The source label names. If the source has no labels, `defaultTags` is used.
 - `youtube`: The video ID from a YouTube URL in the issue body.
 
 If the issue body starts with a Markdown image, the image is removed from the
@@ -88,35 +88,40 @@ frontmatter. Local image paths become `image` frontmatter.
 
 ## Posting Short Updates
 
-From GitHub CLI:
+Issues are draftable. Create an issue, revise it as needed, then close it to
+publish:
 
 ```bash
 gh issue create --title "Albert Rusnak The Movie. This is really cool from the Sounders." --label personal
-```
-
-Then close the issue to publish it:
-
-```bash
 gh issue close <issue-number>
 ```
 
-From the GitHub mobile app, create an issue with the short update as the title,
-apply labels if needed, then close the issue when it is ready to publish.
+Discussions publish immediately when created. The GitHub CLI does not currently
+include a built-in `gh discussion create` command, so use the GitHub web or
+mobile UI for fast Discussion posts. A future script can use `gh api graphql`
+for command-line Discussion creation.
+
+From the GitHub mobile app, create an issue when you want a draftable post or a
+discussion when you want to publish immediately.
 
 ## Usage
 
-Add the action to a workflow that runs when issues are closed. Pin the action to
-a full commit SHA instead of a tag because tags can move:
+Add the action to a workflow that runs when issues are closed and discussions
+are created. Pin the action to a full commit SHA instead of a tag because tags
+can move:
 
 ```yaml
-name: Publish closed issues
+name: Publish quick post
 
 on:
   issues:
     types: [closed]
+  discussion:
+    types: [created]
 
 permissions:
   contents: write
+  discussions: read
   issues: read
 
 jobs:
@@ -127,26 +132,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create post from issue
+      - name: Create post from GitHub source
         id: issue-poster
         uses: robmen/issue-poster@<full-commit-sha>
         with:
           contentFolder: src/content/blog
+          sources: issues,discussions
 
       - name: Commit generated post
         if: steps.issue-poster.outputs.path != ''
         run: |
+          number="${{ github.event.issue.number || github.event.discussion.number }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "${{ steps.issue-poster.outputs.path }}"
-          git commit -m "Add post from issue #${{ github.event.issue.number }}"
+          git commit -m "Add post from GitHub source #${number}"
           git push
 ```
 
 For local testing from this repository, use the local action reference:
 
 ```yaml
-- name: Create post from issue
+- name: Create post from GitHub source
   id: issue-poster
   uses: ./
   with:
@@ -155,16 +162,17 @@ For local testing from this repository, use the local action reference:
 
 ## Inputs
 
-| Name            | Required | Default            | Description                                               |
-| --------------- | -------- | ------------------ | --------------------------------------------------------- |
-| `contentFolder` | Yes      | `src/content/blog` | Root folder where generated posts are written.            |
-| `defaultTags`   | No       | `personal`         | Comma-separated tags to use when the issue has no labels. |
+| Name            | Required | Default            | Description                                                           |
+| --------------- | -------- | ------------------ | --------------------------------------------------------------------- |
+| `contentFolder` | Yes      | `src/content/blog` | Root folder where generated posts are written.                        |
+| `defaultTags`   | No       | `personal`         | Comma-separated tags to use when the source has no labels.            |
+| `sources`       | No       | `issues`           | Comma-separated sources to process: `issues`, `discussions`, or both. |
 
 ## Outputs
 
-| Name   | Description                                                                           |
-| ------ | ------------------------------------------------------------------------------------- |
-| `path` | Path to the generated Markdown file. Empty when the event was not for a closed issue. |
+| Name   | Description                                                                    |
+| ------ | ------------------------------------------------------------------------------ |
+| `path` | Path to the generated Markdown file. Empty when the event was not publishable. |
 
 ## Development
 
