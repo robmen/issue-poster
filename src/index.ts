@@ -216,8 +216,16 @@ function postSourceFromDiscussion(
 }
 
 function datePath(utcDate: Date): string {
-  const date = new Date(utcDate.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(utcDate);
+  const year = parts.find((p) => p.type === "year")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  const day = parts.find((p) => p.type === "day")!.value;
+  return `${year}/${month}/${day}`;
 }
 
 function formatDate(date: string): string {
